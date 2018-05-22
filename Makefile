@@ -39,7 +39,7 @@ generate:: ## Runs the Golang generate tool
 	@echo ">> generating"
 	@go generate ./...
 
-test: clean fix fmt generate
+test: clean dep fix fmt generate
 
 build:: test ## Builds for all arch ($GOARCH) and OS ($GOOS)
 	@echo ">> building"
