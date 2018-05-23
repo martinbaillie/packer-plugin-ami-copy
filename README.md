@@ -29,9 +29,7 @@ You can download the latest binary for your architecture from the [releases page
     "tags": {
       "Name": "{{user `aws_ami_name`}}-{{timestamp}}",
       "ami:source": "{{.SourceAMI}}",
-      ...
     }
-    ...
   }
 ],
 "provisioners": [],
