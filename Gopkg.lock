@@ -65,8 +65,8 @@
     "service/ec2",
     "service/sts"
   ]
-  revision = "cf00d544fc3c02f31e05e8d02444a1325d3a840b"
-  version = "v1.13.53"
+  revision = "fad131ddc707880428615dc8bc1587b55fb46d74"
+  version = "v1.13.54"
 
 [[projects]]
   name = "github.com/dylanmei/iso8601"
@@ -270,13 +270,13 @@
     "internal/socks",
     "proxy"
   ]
-  revision = "8e0cdda24ed423affc8f35c241e5e9b16180338e"
+  revision = "9ef9f5bb98a1fdc41f8cf6c250a4404b4085e389"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "7c87d13f8e835d2fb3a70a2912c811ed0c1d241b"
+  revision = "88eb85aaee56831ad49eaf7aa80d73de9814cde2"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -305,6 +305,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "4ba035c4b3040a7a960f82fc417ab8b96cfdded9ccdd44ea8667a680579bf591"
+  inputs-digest = "b69b6a98ea7c4f8c0d4fc65a2d918a409ae00782efa742a271d3a2a497959f33"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -20,12 +20,13 @@ dep:: ## Installs build/test dependencies
 	@echo ">> dep"
 	@go get -u github.com/golang/dep/cmd/dep 
 	@dep ensure
+# TODO: mock tests
 # @go get -u github.com/golang/mock/gomock
 # @go install github.com/golang/mock/mockgen
 
 clean:: ## Removes binary and generated files
 	@echo ">> cleaning"
-	@rm -rf $(PROJECT)* mock.go
+	@rm -rf $(PROJECT)* 
 
 fix:: ## Runs the Golang fix tool
 	@echo ">> fixing"
@@ -39,7 +40,7 @@ generate:: ## Runs the Golang generate tool
 	@echo ">> generating"
 	@go generate ./...
 
-test: clean dep fix fmt generate
+test: clean fix fmt generate
 
 build:: test ## Builds for all arch ($GOARCH) and OS ($GOOS)
 	@echo ">> building"
