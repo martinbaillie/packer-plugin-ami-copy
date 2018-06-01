@@ -132,8 +132,8 @@ func (p *PostProcessor) PostProcess(
 				SourceImage:     source,
 				TargetAccountID: user,
 				Input: &ec2.CopyImageInput{
-					Name:          source.Name,
-					Description:   source.Description,
+					Name:          aws.String(*source.Name),
+					Description:   aws.String(*source.Description),
 					SourceImageId: aws.String(ami.id),
 					SourceRegion:  aws.String(ami.region),
 					KmsKeyId:      aws.String(p.config.AMIKmsKeyId),
