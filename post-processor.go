@@ -107,7 +107,8 @@ func (p *PostProcessor) PostProcess(
 	)
 	for _, ami := range amis {
 		var source *ec2.Image
-		if source, err = amicopy.LocateSingleAMI(ami.id, ec2.New(currSession)); err != nil {
+		if source, err = amicopy.LocateSingleAMI(ami.id, ec2.New(currSession)); err != nil ||
+			source == nil {
 			return artifact, true, err
 		}
 
@@ -127,13 +128,23 @@ func (p *PostProcessor) PostProcess(
 				}
 			}
 
+			var name, description string
+			{
+				if *source.Name != "" {
+					name = *source.Name
+				}
+				if *source.Description != "" {
+					description = *source.Description
+				}
+			}
+
 			copies = append(copies, &amicopy.AmiCopy{
 				EC2:             conn,
 				SourceImage:     source,
 				TargetAccountID: user,
 				Input: &ec2.CopyImageInput{
-					Name:          aws.String(*source.Name),
-					Description:   aws.String(*source.Description),
+					Name:          aws.String(name),
+					Description:   aws.String(description),
 					SourceImageId: aws.String(ami.id),
 					SourceRegion:  aws.String(ami.region),
 					KmsKeyId:      aws.String(p.config.AMIKmsKeyId),
