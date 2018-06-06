@@ -130,10 +130,10 @@ func (p *PostProcessor) PostProcess(
 
 			var name, description string
 			{
-				if *source.Name != "" {
+				if source.Name != nil {
 					name = *source.Name
 				}
-				if *source.Description != "" {
+				if source.Description != nil {
 					description = *source.Description
 				}
 			}
