@@ -107,8 +107,10 @@ func (p *PostProcessor) PostProcess(
 	)
 	for _, ami := range amis {
 		var source *ec2.Image
-		if source, err = amicopy.LocateSingleAMI(ami.id, ec2.New(currSession)); err != nil ||
-			source == nil {
+		if source, err = amicopy.LocateSingleAMI(
+			ami.id,
+			ec2.New(currSession, aws.NewConfig().WithRegion(ami.region)),
+		); err != nil || source == nil {
 			return artifact, true, err
 		}
 
