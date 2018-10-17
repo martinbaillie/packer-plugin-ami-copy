@@ -2,12 +2,15 @@ package amicopy
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 
+	"errors"
 	"github.com/hashicorp/packer/common"
+	"github.com/hashicorp/packer/packer"
 )
 
 // AmiCopy holds data and methods related to copying an image.
@@ -17,11 +20,12 @@ type AmiCopy struct {
 	Input           *ec2.CopyImageInput
 	Output          *ec2.CopyImageOutput
 	SourceImage     *ec2.Image
+	EnsureAvailable bool
 }
 
 // Copy will perform an EC2 copy based on the `Input` field.
 // It will also call Tag to copy the source tags, if any.
-func (ac *AmiCopy) Copy() (err error) {
+func (ac *AmiCopy) Copy(ui *packer.Ui) (err error) {
 	if err = ac.Input.Validate(); err != nil {
 		return err
 	}
@@ -30,7 +34,27 @@ func (ac *AmiCopy) Copy() (err error) {
 		return err
 	}
 
-	return ac.Tag()
+	if err = ac.Tag(); err != nil {
+		return err
+	}
+
+	if ac.EnsureAvailable {
+		(*ui).Say("Going to wait for image to be in available state")
+		for i := 1; i <= 30; i++ {
+			image, err := LocateSingleAMI(*ac.Output.ImageId, ac.EC2)
+			if err != nil && image == nil {
+				return err
+			}
+			if *image.State == ec2.ImageStateAvailable {
+				return nil
+			}
+			(*ui).Say(fmt.Sprintf("Waiting one minute (%d/30) for AMI to become available, current state: %s for image %s on account %s", i, *image.State, *image.ImageId, ac.TargetAccountID))
+			time.Sleep(time.Duration(1) * time.Minute)
+		}
+		return errors.New(fmt.Sprintf("Timed out waiting for image %s to copy to account %s", *ac.Output.ImageId, ac.TargetAccountID))
+	}
+
+	return nil
 }
 
 // Tag will copy tags from the source image to the target (if any).

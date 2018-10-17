@@ -40,6 +40,7 @@ type Config struct {
 	// Variables specific to this post-processor
 	RoleName        string `mapstructure:"role_name"`
 	CopyConcurrency int    `mapstructure:"copy_concurrency"`
+	EnsureAvailable bool   `mapstructure:"ensure_available"`
 
 	ctx interpolate.Context
 }
@@ -152,6 +153,7 @@ func (p *PostProcessor) PostProcess(
 					KmsKeyId:      aws.String(p.config.AMIKmsKeyId),
 					Encrypted:     aws.Bool(p.config.AMIEncryptBootVolume),
 				},
+				EnsureAvailable: p.config.EnsureAvailable,
 			})
 		}
 	}
@@ -180,7 +182,7 @@ func (p *PostProcessor) PostProcess(
 					c.TargetAccountID,
 					*c.Input.Encrypted),
 				)
-				if err = c.Copy(); err != nil {
+				if err = c.Copy(&ui); err != nil {
 					ui.Say(err.Error())
 					atomic.AddInt32(&copyErrs, 1)
 					continue
