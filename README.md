@@ -10,7 +10,7 @@
 
 This plugin fills a gap in a lot of AWS image bakery workflows where the source image built by any of Packer's Amazon builders (EBS, Chroot, Instance etc.) needs to be copied to a number of target accounts. 
 
-For each `region:ami-id` built, the plugin will copy the image and tags, and optionally encrypt the target AMI.
+For each `region:ami-id` built, the plugin will copy the image and tags, and optionally encrypt the target AMI and wait for it to become active.
 
 
 ### Installation
@@ -53,3 +53,4 @@ Optional:
 - `copy_concurrency` (integer) - Limit the number of copies executed in parallel (default: unlimited).
 - `encrypt_boot` (boolean) - create the copy with an encrypted EBS volume in the target accounts
 - `kms_key_id` (string) - the ID of the KMS key to use for boot volume encryption. (default EBS KMS key used otherwise).
+- `ensure_available` (boolean) - wait until the AMI becomes available in the copy target account(s)
