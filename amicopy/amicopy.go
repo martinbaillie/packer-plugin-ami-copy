@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 
 	"errors"
+
 	"github.com/hashicorp/packer/common"
 	"github.com/hashicorp/packer/packer"
 )
@@ -21,6 +22,7 @@ type AmiCopy struct {
 	Output          *ec2.CopyImageOutput
 	SourceImage     *ec2.Image
 	EnsureAvailable bool
+	KeepArtifact    bool
 }
 
 // Copy will perform an EC2 copy based on the `Input` field.
