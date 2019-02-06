@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -26,7 +27,7 @@ import (
 	awscommon "github.com/hashicorp/packer/builder/amazon/common"
 )
 
-// BuilderId is the ID of this post processer.
+// BuilderId is the ID of this post processor.
 // nolint: golint
 const BuilderId = "packer.post-processor.ami-copy"
 
@@ -41,6 +42,7 @@ type Config struct {
 	RoleName        string `mapstructure:"role_name"`
 	CopyConcurrency int    `mapstructure:"copy_concurrency"`
 	EnsureAvailable bool   `mapstructure:"ensure_available"`
+	KeepArtifact    string `mapstructure:"keep_artifact"`
 
 	ctx interpolate.Context
 }
@@ -68,6 +70,10 @@ func (p *PostProcessor) Configure(raws ...interface{}) error {
 		return errors.New("ami_users must be set")
 	}
 
+	if len(p.config.KeepArtifact) == 0 {
+		p.config.KeepArtifact = "true"
+	}
+
 	return nil
 }
 
@@ -80,6 +86,12 @@ func (p *PostProcessor) Configure(raws ...interface{}) error {
 // controller by `copy_concurrency`.
 func (p *PostProcessor) PostProcess(
 	ui packer.Ui, artifact packer.Artifact) (packer.Artifact, bool, error) {
+
+	keepArtifactBool, err := strconv.ParseBool(p.config.KeepArtifact)
+	if err != nil {
+		return artifact, keepArtifactBool, err
+	}
+
 	// Ensure we're being called from a supported builder
 	switch artifact.BuilderId() {
 	case ebs.BuilderId,
@@ -89,15 +101,15 @@ func (p *PostProcessor) PostProcess(
 		instance.BuilderId:
 		break
 	default:
-		return artifact, true,
+		return artifact, keepArtifactBool,
 			fmt.Errorf("Unexpected artifact type: %s\nCan only export from Amazon builders",
 				artifact.BuilderId())
 	}
 
 	// Current AWS session
-	var currSession, err = p.config.AccessConfig.Session()
+	currSession, err := p.config.AccessConfig.Session()
 	if err != nil {
-		return artifact, true, err
+		return artifact, keepArtifactBool, err
 	}
 
 	// Copy futures
@@ -112,7 +124,7 @@ func (p *PostProcessor) PostProcess(
 			ami.id,
 			ec2.New(currSession, aws.NewConfig().WithRegion(ami.region)),
 		); err != nil || source == nil {
-			return artifact, true, err
+			return artifact, keepArtifactBool, err
 		}
 
 		for _, user := range users {
@@ -208,7 +220,7 @@ func (p *PostProcessor) PostProcess(
 		return artifact, true, fmt.Errorf(
 			"%d/%d AMI copies failed, manual reconciliation may be required", copyErrs, copyCount)
 	}
-	return artifact, true, nil
+	return artifact, keepArtifactBool, nil
 }
 
 // ami encapsulates simplistic details about an AMI.
