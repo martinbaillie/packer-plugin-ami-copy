@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -43,6 +45,7 @@ type Config struct {
 	CopyConcurrency int    `mapstructure:"copy_concurrency"`
 	EnsureAvailable bool   `mapstructure:"ensure_available"`
 	KeepArtifact    string `mapstructure:"keep_artifact"`
+	ManifestOutput  string `mapstructure:"manifest_output"`
 
 	ctx interpolate.Context
 }
@@ -112,6 +115,11 @@ func (p *PostProcessor) PostProcess(
 		return artifact, keepArtifactBool, err
 	}
 
+	manifestOutput := p.config.ManifestOutput
+	if manifestOutput == "" {
+		manifestOutput = "packer-ami-copy-manifest.json"
+	}
+
 	// Copy futures
 	var (
 		amis   = amisFromArtifactID(artifact.Id())
@@ -172,10 +180,11 @@ func (p *PostProcessor) PostProcess(
 
 	// Copy execution loop
 	var (
-		copyCount = len(copies)
-		copyTasks = make(chan *amicopy.AmiCopy, copyCount)
-		copyErrs  int32
-		wg        sync.WaitGroup
+		copyCount    = len(copies)
+		copyTasks    = make(chan *amicopy.AmiCopy, copyCount)
+		amiManifests = make(chan *amicopy.AmiManifest, copyCount)
+		copyErrs     int32
+		wg           sync.WaitGroup
 	)
 	var workers int
 	{
@@ -199,6 +208,13 @@ func (p *PostProcessor) PostProcess(
 					atomic.AddInt32(&copyErrs, 1)
 					continue
 				}
+				manifest := &amicopy.AmiManifest{
+					AccountID: c.TargetAccountID,
+					Region:    *c.Input.SourceRegion,
+					ImageID:   *c.Output.ImageId,
+				}
+				amiManifests <- manifest
+
 				ui.Say(fmt.Sprintf("[%s] Finished copying %s to %s (copied id: %s)",
 					*c.Input.SourceRegion,
 					*c.Input.SourceImageId,
@@ -215,6 +231,15 @@ func (p *PostProcessor) PostProcess(
 	}
 	close(copyTasks)
 	wg.Wait()
+
+	manifests := []*amicopy.AmiManifest{}
+	for manifest := range amiManifests {
+		manifests = append(manifests, manifest)
+	}
+	err = writeManifests(manifestOutput, manifests)
+	if err != nil {
+		ui.Say(fmt.Sprintf("Unable to write out manifest to %s: %s", manifestOutput, err))
+	}
 
 	if copyErrs > 0 {
 		return artifact, true, fmt.Errorf(
@@ -236,4 +261,23 @@ func amisFromArtifactID(artifactID string) (amis []*ami) {
 		amis = append(amis, &ami{region: pair[0], id: pair[1]})
 	}
 	return amis
+}
+
+func writeManifests(output string, manifests []*amicopy.AmiManifest) error {
+	f, err := os.Open(output)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	for m := range manifests {
+		rawManifest, err := json.Marshal(m)
+		if err != nil {
+			return err
+		}
+		_, err = f.Write(rawManifest)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -25,6 +25,13 @@ type AmiCopy struct {
 	KeepArtifact    bool
 }
 
+// AmiManifest holds the data about the resulting copied image
+type AmiManifest struct {
+	AccountID string `json:"account_id"`
+	Region    string `json:"region"`
+	ImageID   string `json:"image_id"`
+}
+
 // Copy will perform an EC2 copy based on the `Input` field.
 // It will also call Tag to copy the source tags, if any.
 func (ac *AmiCopy) Copy(ui *packer.Ui) (err error) {
