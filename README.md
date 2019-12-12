@@ -58,4 +58,4 @@ Optional:
 - `kms_key_id` (string) - the ID of the KMS key to use for boot volume encryption. (default EBS KMS key used otherwise).
 - `ensure_available` (boolean) - wait until the AMI becomes available in the copy target account(s)
 - `keep_artifact` (boolean) - remove the original generated AMI after copy (default: true)
-- `manifest_output` (string) - the name of the file we output AMI IDs to
+- `manifest_output` (string) - the name of the file we output AMI IDs to, in JSON format (default: no manifest file is written)

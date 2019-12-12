@@ -115,11 +115,6 @@ func (p *PostProcessor) PostProcess(
 		return artifact, keepArtifactBool, err
 	}
 
-	manifestOutput := p.config.ManifestOutput
-	if manifestOutput == "" {
-		manifestOutput = "packer-ami-copy-manifest.json"
-	}
-
 	// Copy futures
 	var (
 		amis   = amisFromArtifactID(artifact.Id())
@@ -232,13 +227,15 @@ func (p *PostProcessor) PostProcess(
 	close(copyTasks)
 	wg.Wait()
 
-	manifests := []*amicopy.AmiManifest{}
-	for manifest := range amiManifests {
-		manifests = append(manifests, manifest)
-	}
-	err = writeManifests(manifestOutput, manifests)
-	if err != nil {
-		ui.Say(fmt.Sprintf("Unable to write out manifest to %s: %s", manifestOutput, err))
+	if p.config.ManifestOutput != "" {
+		manifests := []*amicopy.AmiManifest{}
+		for manifest := range amiManifests {
+			manifests = append(manifests, manifest)
+		}
+		err = writeManifests(p.config.ManifestOutput, manifests)
+		if err != nil {
+			ui.Say(fmt.Sprintf("Unable to write out manifest to %s: %s", p.config.ManifestOutput, err))
+		}
 	}
 
 	if copyErrs > 0 {
