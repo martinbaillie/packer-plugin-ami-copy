@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
+	"io/ioutil"
 	"strconv"
 	"strings"
 	"sync"
@@ -284,20 +284,9 @@ func amisFromArtifactID(artifactID string) (amis []*ami) {
 }
 
 func writeManifests(output string, manifests []*amicopy.AmiManifest) error {
-	f, err := os.Open(output)
+	rawManifest, err := json.Marshal(manifests)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	for m := range manifests {
-		rawManifest, err := json.Marshal(m)
-		if err != nil {
-			return err
-		}
-		_, err = f.Write(rawManifest)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return ioutil.WriteFile(output, rawManifest, 0644)
 }
