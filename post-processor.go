@@ -119,7 +119,7 @@ func (p *PostProcessor) PostProcess(
 	var (
 		amis   = amisFromArtifactID(artifact.Id())
 		users  = p.config.AMIUsers
-		copies []*amicopy.AmiCopy
+		copies []amicopy.AmiCopy
 	)
 	for _, ami := range amis {
 		var source *ec2.Image
@@ -156,34 +156,46 @@ func (p *PostProcessor) PostProcess(
 				}
 			}
 
-			copies = append(copies, &amicopy.AmiCopy{
+			amiCopy := &amicopy.AmiCopyImpl{
 				EC2:             conn,
 				SourceImage:     source,
-				TargetAccountID: user,
-				Input: &ec2.CopyImageInput{
-					Name:          aws.String(name),
-					Description:   aws.String(description),
-					SourceImageId: aws.String(ami.id),
-					SourceRegion:  aws.String(ami.region),
-					KmsKeyId:      aws.String(p.config.AMIKmsKeyId),
-					Encrypted:     aws.Bool(p.config.AMIEncryptBootVolume),
-				},
 				EnsureAvailable: p.config.EnsureAvailable,
+			}
+			amiCopy.SetTargetAccountID(user)
+			amiCopy.SetInput(&ec2.CopyImageInput{
+				Name:          aws.String(name),
+				Description:   aws.String(description),
+				SourceImageId: aws.String(ami.id),
+				SourceRegion:  aws.String(ami.region),
+				KmsKeyId:      aws.String(p.config.AMIKmsKeyId),
+				Encrypted:     aws.Bool(p.config.AMIEncryptBootVolume),
 			})
+
+			copies = append(copies)
 		}
 	}
 
+	copyErrs := copyAMIs(copies, ui, p.config.ManifestOutput, p.config.CopyConcurrency)
+	if copyErrs > 0 {
+		return artifact, true, fmt.Errorf(
+			"%d/%d AMI copies failed, manual reconciliation may be required", copyErrs, len(copies))
+	}
+
+	return artifact, keepArtifactBool, nil
+}
+
+func copyAMIs(copies []amicopy.AmiCopy, ui packer.Ui, manifestOutput string, concurrencyCount int) int32 {
 	// Copy execution loop
 	var (
 		copyCount    = len(copies)
-		copyTasks    = make(chan *amicopy.AmiCopy, copyCount)
+		copyTasks    = make(chan amicopy.AmiCopy, copyCount)
 		amiManifests = make(chan *amicopy.AmiManifest, copyCount)
 		copyErrs     int32
 		wg           sync.WaitGroup
 	)
 	var workers int
 	{
-		if workers = p.config.CopyConcurrency; workers == 0 {
+		if workers = concurrencyCount; workers == 0 {
 			workers = copyCount
 		}
 	}
@@ -192,29 +204,37 @@ func (p *PostProcessor) PostProcess(
 		go func() {
 			defer wg.Done()
 			for c := range copyTasks {
-				ui.Say(fmt.Sprintf("[%s] Copying %s to account %s (encrypted: %t)",
-					*c.Input.SourceRegion,
-					*c.Input.SourceImageId,
-					c.TargetAccountID,
-					*c.Input.Encrypted),
+				input := c.Input()
+				ui.Say(
+					fmt.Sprintf(
+						"[%s] Copying %s to account %s (encrypted: %t)",
+						*input.SourceRegion,
+						*input.SourceImageId,
+						c.TargetAccountID(),
+						*input.Encrypted,
+					),
 				)
-				if err = c.Copy(&ui); err != nil {
+				if err := c.Copy(&ui); err != nil {
 					ui.Say(err.Error())
 					atomic.AddInt32(&copyErrs, 1)
 					continue
 				}
+				output := c.Output()
 				manifest := &amicopy.AmiManifest{
-					AccountID: c.TargetAccountID,
-					Region:    *c.Input.SourceRegion,
-					ImageID:   *c.Output.ImageId,
+					AccountID: c.TargetAccountID(),
+					Region:    *input.SourceRegion,
+					ImageID:   *output.ImageId,
 				}
 				amiManifests <- manifest
 
-				ui.Say(fmt.Sprintf("[%s] Finished copying %s to %s (copied id: %s)",
-					*c.Input.SourceRegion,
-					*c.Input.SourceImageId,
-					c.TargetAccountID,
-					*c.Output.ImageId),
+				ui.Say(
+					fmt.Sprintf(
+						"[%s] Finished copying %s to %s (copied id: %s)",
+						*input.SourceRegion,
+						*input.SourceImageId,
+						c.TargetAccountID(),
+						*output.ImageId,
+					),
 				)
 			}
 		}()
@@ -227,22 +247,18 @@ func (p *PostProcessor) PostProcess(
 	close(copyTasks)
 	wg.Wait()
 
-	if p.config.ManifestOutput != "" {
+	if manifestOutput != "" {
 		manifests := []*amicopy.AmiManifest{}
 		for manifest := range amiManifests {
 			manifests = append(manifests, manifest)
 		}
-		err = writeManifests(p.config.ManifestOutput, manifests)
+		err := writeManifests(manifestOutput, manifests)
 		if err != nil {
-			ui.Say(fmt.Sprintf("Unable to write out manifest to %s: %s", p.config.ManifestOutput, err))
+			ui.Say(fmt.Sprintf("Unable to write out manifest to %s: %s", manifestOutput, err))
 		}
 	}
 
-	if copyErrs > 0 {
-		return artifact, true, fmt.Errorf(
-			"%d/%d AMI copies failed, manual reconciliation may be required", copyErrs, copyCount)
-	}
-	return artifact, keepArtifactBool, nil
+	return copyErrs
 }
 
 // ami encapsulates simplistic details about an AMI.
