@@ -66,7 +66,7 @@ func (ac *AmiCopyImpl) Copy(ui *packer.Ui) (err error) {
 			if *image.State == ec2.ImageStateAvailable {
 				return nil
 			}
-			(*ui).Say(fmt.Sprintf("Waiting one minute (%d/30) for AMI to become available, current state: %s for image %s on account %s", i, *image.State, *image.ImageId, ac.TargetAccountID))
+			(*ui).Say(fmt.Sprintf("Waiting one minute (%d/30) for AMI to become available, current state: %s for image %s on account %s", i, *image.State, *image.ImageId, ac.targetAccountID))
 			time.Sleep(time.Duration(1) * time.Minute)
 		}
 		return errors.New(fmt.Sprintf("Timed out waiting for image %s to copy to account %s", *ac.output.ImageId, ac.targetAccountID))
