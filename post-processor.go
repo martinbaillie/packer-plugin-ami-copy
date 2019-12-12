@@ -249,14 +249,21 @@ func copyAMIs(copies []amicopy.AmiCopy, ui packer.Ui, manifestOutput string, con
 
 	if manifestOutput != "" {
 		manifests := []*amicopy.AmiManifest{}
-		for manifest := range amiManifests {
-			manifests = append(manifests, manifest)
+	LOOP:
+		for {
+			select {
+			case m := <-amiManifests:
+				manifests = append(manifests, m)
+			default:
+				break LOOP
+			}
 		}
 		err := writeManifests(manifestOutput, manifests)
 		if err != nil {
 			ui.Say(fmt.Sprintf("Unable to write out manifest to %s: %s", manifestOutput, err))
 		}
 	}
+	close(amiManifests)
 
 	return copyErrs
 }
