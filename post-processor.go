@@ -171,7 +171,7 @@ func (p *PostProcessor) PostProcess(
 				Encrypted:     aws.Bool(p.config.AMIEncryptBootVolume),
 			})
 
-			copies = append(copies)
+			copies = append(copies, amiCopy)
 		}
 	}
 
