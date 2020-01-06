@@ -1,9 +1,13 @@
+//go:generate mapstructure-to-hcl2 -type Config
+
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/hashicorp/hcl/v2/hcldec"
 	"io/ioutil"
 	"strconv"
 	"strings"
@@ -55,6 +59,10 @@ type PostProcessor struct {
 	config Config
 }
 
+func (p *PostProcessor) ConfigSpec() hcldec.ObjectSpec {
+	return p.config.FlatMapstructure().HCL2Spec()
+}
+
 // Configure interpolates and validates requisite vars for the PostProcessor.
 func (p *PostProcessor) Configure(raws ...interface{}) error {
 	p.config.ctx.Funcs = awscommon.TemplateFuncs
@@ -88,11 +96,11 @@ func (p *PostProcessor) Configure(raws ...interface{}) error {
 // Copies are executed concurrently. This concurrency is unlimited unless
 // controller by `copy_concurrency`.
 func (p *PostProcessor) PostProcess(
-	ui packer.Ui, artifact packer.Artifact) (packer.Artifact, bool, error) {
+	ctx context.Context, ui packer.Ui, artifact packer.Artifact) (packer.Artifact, bool, bool, error) {
 
 	keepArtifactBool, err := strconv.ParseBool(p.config.KeepArtifact)
 	if err != nil {
-		return artifact, keepArtifactBool, err
+		return artifact, keepArtifactBool, false, err
 	}
 
 	// Ensure we're being called from a supported builder
@@ -104,7 +112,7 @@ func (p *PostProcessor) PostProcess(
 		instance.BuilderId:
 		break
 	default:
-		return artifact, keepArtifactBool,
+		return artifact, keepArtifactBool, false,
 			fmt.Errorf("Unexpected artifact type: %s\nCan only export from Amazon builders",
 				artifact.BuilderId())
 	}
@@ -112,7 +120,7 @@ func (p *PostProcessor) PostProcess(
 	// Current AWS session
 	currSession, err := p.config.AccessConfig.Session()
 	if err != nil {
-		return artifact, keepArtifactBool, err
+		return artifact, keepArtifactBool, false, err
 	}
 
 	// Copy futures
@@ -127,7 +135,7 @@ func (p *PostProcessor) PostProcess(
 			ami.id,
 			ec2.New(currSession, aws.NewConfig().WithRegion(ami.region)),
 		); err != nil || source == nil {
-			return artifact, keepArtifactBool, err
+			return artifact, keepArtifactBool, false, err
 		}
 
 		for _, user := range users {
@@ -168,7 +176,7 @@ func (p *PostProcessor) PostProcess(
 				SourceImageId: aws.String(ami.id),
 				SourceRegion:  aws.String(ami.region),
 				KmsKeyId:      aws.String(p.config.AMIKmsKeyId),
-				Encrypted:     aws.Bool(p.config.AMIEncryptBootVolume),
+				Encrypted:     aws.Bool(*p.config.AMIEncryptBootVolume.ToBoolPointer()),
 			})
 
 			copies = append(copies, amiCopy)
@@ -177,11 +185,11 @@ func (p *PostProcessor) PostProcess(
 
 	copyErrs := copyAMIs(copies, ui, p.config.ManifestOutput, p.config.CopyConcurrency)
 	if copyErrs > 0 {
-		return artifact, true, fmt.Errorf(
+		return artifact, true, false, fmt.Errorf(
 			"%d/%d AMI copies failed, manual reconciliation may be required", copyErrs, len(copies))
 	}
 
-	return artifact, keepArtifactBool, nil
+	return artifact, keepArtifactBool, false, nil
 }
 
 func copyAMIs(copies []amicopy.AmiCopy, ui packer.Ui, manifestOutput string, concurrencyCount int) int32 {

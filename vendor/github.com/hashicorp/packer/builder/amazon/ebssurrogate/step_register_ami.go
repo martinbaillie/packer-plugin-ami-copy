@@ -7,6 +7,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	awscommon "github.com/hashicorp/packer/builder/amazon/common"
+	"github.com/hashicorp/packer/common/random"
+	confighelper "github.com/hashicorp/packer/helper/config"
 	"github.com/hashicorp/packer/helper/multistep"
 	"github.com/hashicorp/packer/packer"
 )
@@ -16,12 +18,15 @@ type StepRegisterAMI struct {
 	RootDevice               RootBlockDevice
 	AMIDevices               []*ec2.BlockDeviceMapping
 	LaunchDevices            []*ec2.BlockDeviceMapping
-	EnableAMIENASupport      bool
+	EnableAMIENASupport      confighelper.Trilean
 	EnableAMISriovNetSupport bool
+	Architecture             string
 	image                    *ec2.Image
+	LaunchOmitMap            map[string]bool
+	AMISkipBuildRegion       bool
 }
 
-func (s *StepRegisterAMI) Run(_ context.Context, state multistep.StateBag) multistep.StepAction {
+func (s *StepRegisterAMI) Run(ctx context.Context, state multistep.StateBag) multistep.StepAction {
 	config := state.Get("config").(*Config)
 	ec2conn := state.Get("ec2").(*ec2.EC2)
 	snapshotIds := state.Get("snapshot_ids").(map[string]string)
@@ -31,9 +36,26 @@ func (s *StepRegisterAMI) Run(_ context.Context, state multistep.StateBag) multi
 
 	blockDevices := s.combineDevices(snapshotIds)
 
+	// Create the image
+	amiName := config.AMIName
+	state.Put("intermediary_image", false)
+	if config.AMIEncryptBootVolume.True() || s.AMISkipBuildRegion {
+		state.Put("intermediary_image", true)
+
+		// From AWS SDK docs: You can encrypt a copy of an unencrypted snapshot,
+		// but you cannot use it to create an unencrypted copy of an encrypted
+		// snapshot. Your default CMK for EBS is used unless you specify a
+		// non-default key using KmsKeyId.
+
+		// If encrypt_boot is nil or true, we need to create a temporary image
+		// so that in step_region_copy, we can copy it with the correct
+		// encryption
+		amiName = random.AlphaNum(7)
+	}
+
 	registerOpts := &ec2.RegisterImageInput{
-		Name:                &config.AMIName,
-		Architecture:        aws.String(ec2.ArchitectureValuesX8664),
+		Name:                &amiName,
+		Architecture:        aws.String(s.Architecture),
 		RootDeviceName:      aws.String(s.RootDevice.DeviceName),
 		VirtualizationType:  aws.String(config.AMIVirtType),
 		BlockDeviceMappings: blockDevices,
@@ -44,7 +66,7 @@ func (s *StepRegisterAMI) Run(_ context.Context, state multistep.StateBag) multi
 		// As of February 2017, this applies to C3, C4, D2, I2, R3, and M4 (excluding m4.16xlarge)
 		registerOpts.SriovNetSupport = aws.String("simple")
 	}
-	if s.EnableAMIENASupport {
+	if s.EnableAMIENASupport.True() {
 		// Set EnaSupport to true
 		// As of February 2017, this applies to C5, I3, P2, R4, X1, and m4.16xlarge
 		registerOpts.EnaSupport = aws.Bool(true)
@@ -63,15 +85,8 @@ func (s *StepRegisterAMI) Run(_ context.Context, state multistep.StateBag) multi
 	state.Put("amis", amis)
 
 	// Wait for the image to become ready
-	stateChange := awscommon.StateChangeConf{
-		Pending:   []string{"pending"},
-		Target:    "available",
-		Refresh:   awscommon.AMIStateRefreshFunc(ec2conn, *registerResp.ImageId),
-		StepState: state,
-	}
-
 	ui.Say("Waiting for AMI to become ready...")
-	if _, err := awscommon.WaitForState(&stateChange); err != nil {
+	if err := awscommon.WaitUntilAMIAvailable(ctx, ec2conn, *registerResp.ImageId); err != nil {
 		err := fmt.Errorf("Error waiting for AMI: %s", err)
 		state.Put("error", err)
 		ui.Error(err.Error())
@@ -132,6 +147,11 @@ func (s *StepRegisterAMI) combineDevices(snapshotIds map[string]string) []*ec2.B
 	// the same name in ami_block_device_mappings, except for the
 	// one designated as the root device in ami_root_device
 	for _, device := range s.LaunchDevices {
+		// Skip devices we've flagged for omission
+		omit, ok := s.LaunchOmitMap[*device.DeviceName]
+		if ok && omit {
+			continue
+		}
 		snapshotId, ok := snapshotIds[*device.DeviceName]
 		if ok {
 			device.Ebs.SnapshotId = aws.String(snapshotId)

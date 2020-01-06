@@ -2,7 +2,6 @@ package ebssurrogate
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -19,11 +18,13 @@ import (
 // Produces:
 //   snapshot_ids map[string]string - IDs of the created snapshots
 type StepSnapshotVolumes struct {
-	LaunchDevices []*ec2.BlockDeviceMapping
-	snapshotIds   map[string]string
+	LaunchDevices   []*ec2.BlockDeviceMapping
+	snapshotIds     map[string]string
+	snapshotMutex   sync.Mutex
+	SnapshotOmitMap map[string]bool
 }
 
-func (s *StepSnapshotVolumes) snapshotVolume(deviceName string, state multistep.StateBag) error {
+func (s *StepSnapshotVolumes) snapshotVolume(ctx context.Context, deviceName string, state multistep.StateBag) error {
 	ec2conn := state.Get("ec2").(*ec2.EC2)
 	ui := state.Get("ui").(packer.Ui)
 	instance := state.Get("instance").(*ec2.Instance)
@@ -50,35 +51,16 @@ func (s *StepSnapshotVolumes) snapshotVolume(deviceName string, state multistep.
 	}
 
 	// Set the snapshot ID so we can delete it later
+	s.snapshotMutex.Lock()
 	s.snapshotIds[deviceName] = *createSnapResp.SnapshotId
+	s.snapshotMutex.Unlock()
 
-	// Wait for the snapshot to be ready
-	stateChange := awscommon.StateChangeConf{
-		Pending:   []string{"pending"},
-		StepState: state,
-		Target:    "completed",
-		Refresh: func() (interface{}, string, error) {
-			resp, err := ec2conn.DescribeSnapshots(&ec2.DescribeSnapshotsInput{
-				SnapshotIds: []*string{createSnapResp.SnapshotId},
-			})
-			if err != nil {
-				return nil, "", err
-			}
-
-			if len(resp.Snapshots) == 0 {
-				return nil, "", errors.New("No snapshots found.")
-			}
-
-			s := resp.Snapshots[0]
-			return s, *s.State, nil
-		},
-	}
-
-	_, err = awscommon.WaitForState(&stateChange)
+	// Wait for snapshot to be created
+	err = awscommon.WaitUntilSnapshotDone(ctx, ec2conn, *createSnapResp.SnapshotId)
 	return err
 }
 
-func (s *StepSnapshotVolumes) Run(_ context.Context, state multistep.StateBag) multistep.StepAction {
+func (s *StepSnapshotVolumes) Run(ctx context.Context, state multistep.StateBag) multistep.StepAction {
 	ui := state.Get("ui").(packer.Ui)
 
 	s.snapshotIds = map[string]string{}
@@ -86,10 +68,16 @@ func (s *StepSnapshotVolumes) Run(_ context.Context, state multistep.StateBag) m
 	var wg sync.WaitGroup
 	var errs *multierror.Error
 	for _, device := range s.LaunchDevices {
+		// Skip devices we've flagged for omission
+		omit, ok := s.SnapshotOmitMap[*device.DeviceName]
+		if ok && omit {
+			continue
+		}
+
 		wg.Add(1)
 		go func(device *ec2.BlockDeviceMapping) {
 			defer wg.Done()
-			if err := s.snapshotVolume(*device.DeviceName, state); err != nil {
+			if err := s.snapshotVolume(ctx, *device.DeviceName, state); err != nil {
 				errs = multierror.Append(errs, err)
 			}
 		}(device)
@@ -119,11 +107,13 @@ func (s *StepSnapshotVolumes) Cleanup(state multistep.StateBag) {
 		ec2conn := state.Get("ec2").(*ec2.EC2)
 		ui := state.Get("ui").(packer.Ui)
 		ui.Say("Removing snapshots since we cancelled or halted...")
+		s.snapshotMutex.Lock()
 		for _, snapshotId := range s.snapshotIds {
 			_, err := ec2conn.DeleteSnapshot(&ec2.DeleteSnapshotInput{SnapshotId: &snapshotId})
 			if err != nil {
 				ui.Error(fmt.Sprintf("Error: %s", err))
 			}
 		}
+		s.snapshotMutex.Unlock()
 	}
 }
