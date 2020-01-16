@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/hashicorp/packer/common"
 	"github.com/hashicorp/packer/helper/multistep"
 	"github.com/hashicorp/packer/packer"
 	"github.com/hashicorp/packer/template/interpolate"
@@ -26,19 +27,23 @@ type mountPathData struct {
 //   mount_device_cleanup CleanupFunc - To perform early cleanup
 type StepMountDevice struct {
 	MountOptions   []string
-	MountPartition int
+	MountPartition string
 
 	mountPath string
 }
 
-func (s *StepMountDevice) Run(_ context.Context, state multistep.StateBag) multistep.StepAction {
+func (s *StepMountDevice) Run(ctx context.Context, state multistep.StateBag) multistep.StepAction {
 	config := state.Get("config").(*Config)
 	ui := state.Get("ui").(packer.Ui)
 	device := state.Get("device").(string)
-	wrappedCommand := state.Get("wrappedCommand").(CommandWrapper)
+	if config.NVMEDevicePath != "" {
+		// customizable device path for mounting NVME block devices on c5 and m5 HVM
+		device = config.NVMEDevicePath
+	}
+	wrappedCommand := state.Get("wrappedCommand").(common.CommandWrapper)
 
 	var virtualizationType string
-	if config.FromScratch {
+	if config.FromScratch || config.AMIVirtType != "" {
 		virtualizationType = config.AMIVirtType
 	} else {
 		image := state.Get("source_image").(*ec2.Image)
@@ -46,9 +51,10 @@ func (s *StepMountDevice) Run(_ context.Context, state multistep.StateBag) multi
 		log.Printf("Source image virtualization type is: %s", virtualizationType)
 	}
 
-	ctx := config.ctx
-	ctx.Data = &mountPathData{Device: filepath.Base(device)}
-	mountPath, err := interpolate.Render(config.MountPath, &ctx)
+	ictx := config.ctx
+
+	ictx.Data = &mountPathData{Device: filepath.Base(device)}
+	mountPath, err := interpolate.Render(config.MountPath, &ictx)
 
 	if err != nil {
 		err := fmt.Errorf("Error preparing mount directory: %s", err)
@@ -75,8 +81,9 @@ func (s *StepMountDevice) Run(_ context.Context, state multistep.StateBag) multi
 	}
 
 	deviceMount := device
-	if virtualizationType == "hvm" {
-		deviceMount = fmt.Sprintf("%s%d", device, s.MountPartition)
+
+	if virtualizationType == "hvm" && s.MountPartition != "0" {
+		deviceMount = fmt.Sprintf("%s%s", device, s.MountPartition)
 	}
 	state.Put("deviceMount", deviceMount)
 
@@ -97,8 +104,8 @@ func (s *StepMountDevice) Run(_ context.Context, state multistep.StateBag) multi
 		ui.Error(err.Error())
 		return multistep.ActionHalt
 	}
-
-	cmd := ShellCommand(mountCommand)
+	log.Printf("[DEBUG] (step mount) mount command is %s", mountCommand)
+	cmd := common.ShellCommand(mountCommand)
 	cmd.Stderr = stderr
 	if err := cmd.Run(); err != nil {
 		err := fmt.Errorf(
@@ -129,7 +136,7 @@ func (s *StepMountDevice) CleanupFunc(state multistep.StateBag) error {
 	}
 
 	ui := state.Get("ui").(packer.Ui)
-	wrappedCommand := state.Get("wrappedCommand").(CommandWrapper)
+	wrappedCommand := state.Get("wrappedCommand").(common.CommandWrapper)
 
 	ui.Say("Unmounting the root device...")
 	unmountCommand, err := wrappedCommand(fmt.Sprintf("umount %s", s.mountPath))
@@ -137,7 +144,7 @@ func (s *StepMountDevice) CleanupFunc(state multistep.StateBag) error {
 		return fmt.Errorf("Error creating unmount command: %s", err)
 	}
 
-	cmd := ShellCommand(unmountCommand)
+	cmd := common.ShellCommand(unmountCommand)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("Error unmounting root device: %s", err)
 	}

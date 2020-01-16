@@ -6,7 +6,7 @@ SRC 		?=$(shell go list ./...)
 SRCFILES	?=$(shell find . -type f -name '*.go' -not -path './vendor/*')
 
 LDFLAGS ?=-s -w -extld ld -extldflags -static
-FLAGS	?=-a -installsuffix cgo -ldflags "$(LDFLAGS)"
+FLAGS	?=-mod=vendor -a -installsuffix cgo -ldflags "$(LDFLAGS)"
 GOOS 	?=darwin windows linux
 GOARCH 	?=amd64
 
@@ -14,15 +14,7 @@ PROJECT	?=packer-post-processor-ami-copy
 
 .DEFAULT_GOAL := build
 
-.PHONY: dep clean fix fmt generate test build help
-
-dep:: ## Installs build/test dependencies
-	@echo ">> dep"
-	@go get -u github.com/golang/dep/cmd/dep 
-	@dep ensure
-# TODO: mock tests
-# @go get -u github.com/golang/mock/gomock
-# @go install github.com/golang/mock/mockgen
+.PHONY: clean fix fmt generate test build help
 
 clean:: ## Removes binary and generated files
 	@echo ">> cleaning"
@@ -38,6 +30,7 @@ fmt:: ## Formats source code according to the Go standard
 
 generate:: ## Runs the Golang generate tool
 	@echo ">> generating"
+	@go install github.com/hashicorp/packer/cmd/mapstructure-to-hcl2
 	@go generate ./...
 
 test: clean fix fmt generate

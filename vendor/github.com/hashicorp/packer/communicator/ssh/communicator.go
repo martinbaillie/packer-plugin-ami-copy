@@ -3,6 +3,7 @@ package ssh
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/packer/packer"
+	"github.com/hashicorp/packer/packer/tmp"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
@@ -31,6 +33,24 @@ type comm struct {
 	config  *Config
 	conn    net.Conn
 	address string
+}
+
+// TunnelDirection is the supported tunnel directions
+type TunnelDirection int
+
+const (
+	UnsetTunnel TunnelDirection = iota
+	RemoteTunnel
+	LocalTunnel
+)
+
+// TunnelSpec represents a request to map a port on one side of the SSH connection to the other
+type TunnelSpec struct {
+	Direction   TunnelDirection
+	ListenType  string
+	ListenAddr  string
+	ForwardType string
+	ForwardAddr string
 }
 
 // Config is the structure used to configure the SSH communicator.
@@ -62,6 +82,8 @@ type Config struct {
 
 	// Timeout is how long to wait for a read or write to succeed.
 	Timeout time.Duration
+
+	Tunnels []TunnelSpec
 }
 
 // Creates a new packer.Communicator implementation over SSH. This takes
@@ -81,7 +103,7 @@ func New(address string, config *Config) (result *comm, err error) {
 	return
 }
 
-func (c *comm) Start(cmd *packer.RemoteCmd) (err error) {
+func (c *comm) Start(ctx context.Context, cmd *packer.RemoteCmd) (err error) {
 	session, err := c.newSession()
 	if err != nil {
 		return
@@ -335,7 +357,6 @@ func (c *comm) reconnect() (err error) {
 	}
 
 	if err != nil {
-		log.Printf("[ERROR] handshake error: %s", err)
 		return
 	}
 	log.Printf("[DEBUG] handshake complete!")
@@ -343,8 +364,74 @@ func (c *comm) reconnect() (err error) {
 		c.client = ssh.NewClient(sshConn, sshChan, req)
 	}
 	c.connectToAgent()
+	err = c.connectTunnels(sshConn)
+	if err != nil {
+		return
+	}
 
 	return
+}
+
+func (c *comm) connectTunnels(sshConn ssh.Conn) (err error) {
+	if c.client == nil {
+		return
+	}
+
+	if len(c.config.Tunnels) == 0 {
+		// No Tunnels to configure
+		return
+	}
+
+	// Start remote forwards of ports to ourselves.
+	log.Printf("[DEBUG] Tunnel configuration: %v", c.config.Tunnels)
+	for _, v := range c.config.Tunnels {
+		done := make(chan struct{})
+		var listener net.Listener
+		switch v.Direction {
+		case RemoteTunnel:
+			// This requests the sshd Host to bind a port and send traffic back to us
+			listener, err = c.client.Listen(v.ListenType, v.ListenAddr)
+			if err != nil {
+				err = fmt.Errorf("Tunnel: Failed to bind remote ('%v'): %s", v, err)
+				return
+			}
+			log.Printf("[INFO] Tunnel: Remote bound on %s forwarding to %s", v.ListenAddr, v.ForwardAddr)
+			connectFunc := ConnectFunc(v.ForwardType, v.ForwardAddr)
+			go ProxyServe(listener, done, connectFunc)
+			// Wait for our sshConn to be shutdown
+			// FIXME: Is there a better "on-shutdown" we can wait on?
+			go shutdownProxyTunnel(sshConn, done, listener)
+		case LocalTunnel:
+			// This binds locally and sends traffic back to the sshd host
+			listener, err = net.Listen(v.ListenType, v.ListenAddr)
+			if err != nil {
+				err = fmt.Errorf("Tunnel: Failed to bind local ('%v'): %s", v, err)
+				return
+			}
+			log.Printf("[INFO] Tunnel: Local bound on %s forwarding to %s", v.ListenAddr, v.ForwardAddr)
+			connectFunc := func() (net.Conn, error) {
+				// This Dial occurs on the SSH server's side
+				return c.client.Dial(v.ForwardType, v.ForwardAddr)
+			}
+			go ProxyServe(listener, done, connectFunc)
+			// FIXME: Is there a better "on-shutdown" we can wait on?
+			go shutdownProxyTunnel(sshConn, done, listener)
+		default:
+			err = fmt.Errorf("Tunnel: Unknown tunnel direction ('%v'): %v", v, v.Direction)
+			return
+		}
+	}
+
+	return
+}
+
+// shutdownProxyTunnel waits for our sshConn to be shutdown and closes the listeners
+func shutdownProxyTunnel(sshConn ssh.Conn, done chan struct{}, listener net.Listener) {
+	sshConn.Wait()
+	log.Printf("[INFO] Tunnel: Shutting down listener %v", listener)
+	done <- struct{}{}
+	close(done)
+	listener.Close()
 }
 
 func (c *comm) connectToAgent() {
@@ -570,6 +657,9 @@ func (c *comm) scpUploadSession(path string, input io.Reader, fi *os.FileInfo) e
 	// which works for unix and windows
 	target_dir = filepath.ToSlash(target_dir)
 
+	// Escape spaces in remote directory
+	target_dir = strings.Replace(target_dir, " ", "\\ ", -1)
+
 	scpFunc := func(w io.Writer, stdoutR *bufio.Reader) error {
 		return scpUploadFile(target_file, input, w, stdoutR, fi)
 	}
@@ -791,7 +881,7 @@ func scpUploadFile(dst string, src io.Reader, w io.Writer, r *bufio.Reader, fi *
 	} else {
 		// Create a temporary file where we can copy the contents of the src
 		// so that we can determine the length, since SCP is length-prefixed.
-		tf, err := ioutil.TempFile("", "packer-upload")
+		tf, err := tmp.File("packer-upload")
 		if err != nil {
 			return fmt.Errorf("Error creating temporary file for upload: %s", err)
 		}
@@ -802,7 +892,10 @@ func scpUploadFile(dst string, src io.Reader, w io.Writer, r *bufio.Reader, fi *
 
 		log.Println("[DEBUG] Copying input data into temporary file so we can read the length")
 		if _, err := io.Copy(tf, src); err != nil {
-			return err
+			return fmt.Errorf("Error copying input data into local temporary "+
+				"file. Check that TEMPDIR has enough space. Please see "+
+				"https://www.packer.io/docs/other/environment-variables.html#tmpdir"+
+				"for more info. Error: %s", err)
 		}
 
 		// Sync the file so that the contents are definitely on disk, then
