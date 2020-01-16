@@ -6,7 +6,7 @@ SRC 		?=$(shell go list ./...)
 SRCFILES	?=$(shell find . -type f -name '*.go' -not -path './vendor/*')
 
 LDFLAGS ?=-s -w -extld ld -extldflags -static
-FLAGS	?=-mod=vendor -a -installsuffix cgo -ldflags "$(LDFLAGS)"
+FLAGS	?=-a -installsuffix cgo -ldflags "$(LDFLAGS)"
 GOOS 	?=darwin windows linux
 GOARCH 	?=amd64
 
