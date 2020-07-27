@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go v1.24.1
 	github.com/dylanmei/winrmtest v0.0.0-20190225150635-99b7fe2fddf1 // indirect
 	github.com/hashicorp/hcl/v2 v2.0.0
-	github.com/hashicorp/packer v1.5.0
+	github.com/hashicorp/packer v1.4.5
 	github.com/hashicorp/yamux v0.0.0-20190923154419-df201c70410d // indirect
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/masterzen/winrm v0.0.0-20190308153735-1d17eaf15943 // indirect

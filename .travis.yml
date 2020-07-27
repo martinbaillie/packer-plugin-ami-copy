@@ -5,14 +5,14 @@ install: true
 deploy:
   provider: releases
   api_key:
-    secure: rrnRqtQweOj7M3gqxAHmFGC5EnOr9AciFdTUVAv1i3Gc1fy4scd6kTKu3KNjYVYyV8GVahjYS9rhkyd8DntNyDr8JbI9Ol2LJLOlkVmVwL8i2h2DiZi8oKJIIhaU8UQK1DrnZvSmWKPSeKRGMOJPh/AKEY2ze5b7montoZwDQ/ohwyqWkfxcFpx4OKX0a/kj/dYIulq6OlWSTV0ukVE4I7nKPMG0UwycXjv5WLiiDKANM3YF8sYIluFUyZLBJiArkkn7T7rgR+CvpNoP3T0MgKNvbSaPel93pBWtYYxt/QpZI2F48YfdyP4qlvSxxHxtWRW/3LOqWbZRc3+iKdmIuTwRDu7hHSNPsj5X7m8HVTCWvbQHhomI/oKG5JbSGmLhzxUKaZwKGWK/oGHUXzEoha/e2CF28d0Cpujg/dPwfG56gqVRg7G9mZel8CcjUvP9c1b7wPEodgPc9uKjl/JSPHuwqNf3VAC44UQezjuSVuuX/SpnKODgoksIsM9cD6RgokepiX4oLvUTTOvo6w5s+WbBh/LpHTt53TYB3lJidWMr/AX/tdjILzZziIho4mMWOjMR3FQuO+IqW/c2ccDzXb+8HGWsOkYnSH3K5JofH5O6/RsPVO3snchHJ3155es1HnNg0zfjYAh5ZJV2FOHf9S3Uop8T6elBB0uZk4ND2rU=
+    secure: dhMF/IsPIjeu2/+YxDVwdmpVH25/wry7KC5Il6gziXvsRoBchjKOX7AxGLgAdDzg5o813fbX9Z71bN1MHh9+X3lMO69zsEwV5Hmcdfqo827K/ZsHR6QCU7Ec5ag4H7Z2BVOe41Z4nvUy6XFYsOpnb17qA/XJNeTYJ8eKnhnQuuD8yL95espVd8gx9/sal/n7dNXjKsO414YjRlCbhACPtc2uwPnWNJZwdeXgHWMn0LwaWQkDrnE8Q3Rlz/A7LVfvNdd8es64rUu4Ok6jBZv6IBk+kYps0xlhaj9lXdi/j+rAd5UEiDX5sOWqzfhV5lMxLCYurffGew9/9QSReth+j8e7Z2vCIIAIc03GYXTA+VCV17ZyEFCh/a2e2Ecd9v7hsX0hvUV4riWEFmNPkEtZXH4N5CJOni3ZrB/IO/YGAw6b6zhGgncaleqD/1lAdgmVS5WHc+2h3+qL3K4Gfzk0TVPCnRZfXJJ3dmnymO7FkNjtGfjS+1q7QKQ/fBGjxJsTCstcgS9Z3Nk/Jg5+175MtSilGJB2bkhdp9BZLsJMbQgv5SeITL6EfWmF2kaunKQ9WWhZ+cr1LpUpv6QLghz34yn2h4Ad6rqHrOv4hQSyk+scg726q4FCa3Uqu6EcKNSZzUeMkCksS9ieg0wt/5e4VlU9O1F2V5U26Cb3QYhbA4c=
   skip_cleanup: true
   file:
-  - packer-post-processor-ami-copy-darwin-amd64
-  - packer-post-processor-ami-copy-linux-amd64
-  - packer-post-processor-ami-copy-windows-amd64.exe
+    - packer-post-processor-ami-copy-darwin-amd64
+    - packer-post-processor-ami-copy-linux-amd64
+    - packer-post-processor-ami-copy-windows-amd64.exe
   on:
-    repo: martinbaillie/packer-post-processor-ami-copy
+    repo: alvsanand/packer-post-processor-ami-copy
     all_branches: true
     tags: true
 notifications:

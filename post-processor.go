@@ -7,12 +7,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/hashicorp/hcl/v2/hcldec"
 	"io/ioutil"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	"github.com/hashicorp/hcl/v2/hcldec"
 
 	"github.com/martinbaillie/packer-post-processor-ami-copy/amicopy"
 
@@ -45,11 +46,12 @@ type Config struct {
 	awscommon.AMIConfig    `mapstructure:",squash"`
 
 	// Variables specific to this post-processor
-	RoleName        string `mapstructure:"role_name"`
-	CopyConcurrency int    `mapstructure:"copy_concurrency"`
-	EnsureAvailable bool   `mapstructure:"ensure_available"`
-	KeepArtifact    string `mapstructure:"keep_artifact"`
-	ManifestOutput  string `mapstructure:"manifest_output"`
+	RoleName        string   `mapstructure:"role_name"`
+	Regions         []string `mapstructure:"regions"`
+	CopyConcurrency int      `mapstructure:"copy_concurrency"`
+	EnsureAvailable bool     `mapstructure:"ensure_available"`
+	KeepArtifact    string   `mapstructure:"keep_artifact"`
+	ManifestOutput  string   `mapstructure:"manifest_output"`
 
 	ctx interpolate.Context
 }
@@ -130,6 +132,13 @@ func (p *PostProcessor) PostProcess(
 		copies []amicopy.AmiCopy
 	)
 	for _, ami := range amis {
+		if len(p.config.Regions) > 0 {
+			_, found := find(p.config.Regions, ami.region)
+			if !found {
+				continue
+			}
+		}
+
 		var source *ec2.Image
 		if source, err = amicopy.LocateSingleAMI(
 			ami.id,
@@ -297,4 +306,15 @@ func writeManifests(output string, manifests []*amicopy.AmiManifest) error {
 		return err
 	}
 	return ioutil.WriteFile(output, rawManifest, 0644)
+}
+
+// Find takes a slice and looks for an element in it. If found it will
+// return it's key, otherwise it will return -1 and a bool of false.
+func find(slice []string, val string) (int, bool) {
+	for i, item := range slice {
+		if item == val {
+			return i, true
+		}
+	}
+	return -1, false
 }

@@ -1,8 +1,7 @@
 [![License](https://img.shields.io/badge/license-BSD-brightgreen.svg?style=flat-square)](/LICENSE)
-[![Go Report Card](https://goreportcard.com/badge/github.com/martinbaillie/packer-post-processor-ami-copy?style=flat-square)](https://goreportcard.com/report/github.com/martinbaillie/packer-post-processor-ami-copy)
-[![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](http://godoc.org/github.com/martinbaillie/packer-post-processor-ami-copy)
-[![Build](https://img.shields.io/travis/martinbaillie/packer-post-processor-ami-copy/master.svg?style=flat-square)](https://travis-ci.org/martinbaillie/packer-post-processor-ami-copy)
-[![Release](https://img.shields.io/github/release/martinbaillie/packer-post-processor-ami-copy.svg?style=flat-square)](https://github.com/martinbaillie/packer-post-processor-ami-copy/releases/latest)
+[![Go Report Card](https://goreportcard.com/badge/github.com/alvsanand/packer-post-processor-ami-copy?style=flat-square)](https://goreportcard.com/report/github.com/alvsanand/packer-post-processor-ami-copy)
+[![Build](https://img.shields.io/travis/alvsanand/packer-post-processor-ami-copy/master.svg?style=flat-square)](https://travis-ci.org/alvsanand/packer-post-processor-ami-copy)
+[![Release](https://img.shields.io/github/release/alvsanand/packer-post-processor-ami-copy.svg?style=flat-square)](https://github.com/alvsanand/packer-post-processor-ami-copy/releases/latest)
 
 # packer-post-processor-ami-copy
 
@@ -16,7 +15,7 @@ For each `region:ami-id` built, the plugin will copy the image and tags, and opt
 
 This is a packer _plugin_. Please read the plugin [documentation](https://www.packer.io/docs/extend/plugins.html).
 
-You can download the latest binary for your architecture from the [releases page](https://github.com/martinbaillie/packer-post-processor-ami-copy/releases/latest).
+You can download the latest binary for your architecture from the [releases page](https://github.com/alvsanand/packer-post-processor-ami-copy/releases/latest).
 
 ### Usage
 
@@ -38,6 +37,7 @@ You can download the latest binary for your architecture from the [releases page
     "type": "ami-copy",
     "ami_users":"{{user `aws_ami_users`}}",
     "role_name":    "AMICopyRole",
+    "regions":    "us-east-1",
     "encrypt_boot": true
   }
 ]
@@ -53,6 +53,7 @@ Required:
 
 Optional:
 
+- `regions` (array of strings) - Limit the regions to make the copies (default: same as source account).
 - `copy_concurrency` (integer) - Limit the number of copies executed in parallel (default: unlimited).
 - `encrypt_boot` (boolean) - create the copy with an encrypted EBS volume in the target accounts
 - `kms_key_id` (string) - the ID of the KMS key to use for boot volume encryption. (default EBS KMS key used otherwise).
