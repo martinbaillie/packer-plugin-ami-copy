@@ -1,10 +1,10 @@
 [![License](https://img.shields.io/badge/license-BSD-brightgreen.svg?style=flat-square)](/LICENSE)
-[![Go Report Card](https://goreportcard.com/badge/github.com/martinbaillie/packer-post-processor-ami-copy?style=flat-square)](https://goreportcard.com/report/github.com/martinbaillie/packer-post-processor-ami-copy)
-[![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](http://godoc.org/github.com/martinbaillie/packer-post-processor-ami-copy)
-[![Build](https://img.shields.io/travis/martinbaillie/packer-post-processor-ami-copy/master.svg?style=flat-square)](https://travis-ci.org/martinbaillie/packer-post-processor-ami-copy)
-[![Release](https://img.shields.io/github/release/martinbaillie/packer-post-processor-ami-copy.svg?style=flat-square)](https://github.com/martinbaillie/packer-post-processor-ami-copy/releases/latest)
+[![Go Report Card](https://goreportcard.com/badge/github.com/martinbaillie/packer-plugin-ami-copy?style=flat-square)](https://goreportcard.com/report/github.com/martinbaillie/packer-plugin-ami-copy)
+[![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](http://godoc.org/github.com/martinbaillie/packer-plugin-ami-copy)
+[![Build](https://img.shields.io/travis/martinbaillie/packer-plugin-ami-copy/master.svg?style=flat-square)](https://travis-ci.org/martinbaillie/packer-plugin-ami-copy)
+[![Release](https://img.shields.io/github/release/martinbaillie/packer-plugin-ami-copy.svg?style=flat-square)](https://github.com/martinbaillie/packer-plugin-ami-copy/releases/latest)
 
-# packer-post-processor-ami-copy
+# packer-plugin-ami-copy
 
 ### Description
 
@@ -16,31 +16,32 @@ For each `region:ami-id` built, the plugin will copy the image and tags, and opt
 
 This is a packer _plugin_. Please read the plugin [documentation](https://www.packer.io/docs/extend/plugins.html).
 
-You can download the latest binary for your architecture from the [releases page](https://github.com/martinbaillie/packer-post-processor-ami-copy/releases/latest).
+You can download the latest binary for your architecture from the [releases page](https://github.com/martinbaillie/packer-plugin-ami-copy/releases/latest).
 
 ### Usage
 
 ```json
-"builders": [
-  {
-    "type": "amazon-ebs",
-    "ami_users": "{{user `aws_ami_users`}}",
-    "snapshot_users": "{{user `aws_ami_users`}}",
-    "tags": {
-      "Name": "{{user `aws_ami_name`}}-{{timestamp}}",
-      "ami:source": "{{.SourceAMI}}",
-    }
+locals { timestamp = regex_replace(timestamp(), "[- TZ:]", "") }
+
+source "amazon-ebs" "demo" {
+  ami_users      = "${var.aws_ami_users}"
+  snapshot_users = "${var.aws_ami_users}"
+  tags = {
+    Name         = "${var.aws_ami_name}-${local.timestamp}"
+    "ami:source" = "{{ .SourceAMI }}"
   }
-],
-"provisioners": [],
-"post-processors": [
-  {
-    "type": "ami-copy",
-    "ami_users":"{{user `aws_ami_users`}}",
-    "role_name":    "AMICopyRole",
-    "encrypt_boot": true
+}
+
+build {
+  sources = ["source.amazon-ebs.demo"]
+
+  post-processor "ami-copy" {
+    ami_users    = "${var.aws_ami_users}"
+    encrypt_boot = true
+    role_name    = "AMICopyRole"
+    // ... other settings.
   }
-]
+}
 ```
 
 ### Configuration

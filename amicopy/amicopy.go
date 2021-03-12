@@ -1,6 +1,7 @@
 package amicopy
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -8,8 +9,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 
-	"github.com/hashicorp/packer/common"
-	"github.com/hashicorp/packer/packer"
+	"github.com/hashicorp/packer-plugin-sdk/packer"
+	"github.com/hashicorp/packer-plugin-sdk/retry"
+	"github.com/hashicorp/packer/builder/amazon/common/awserrors"
 )
 
 // AmiCopy defines the interface to copy images
@@ -100,7 +102,14 @@ func (ac *AmiCopyImpl) Tag() (err error) {
 	}
 
 	// Retry creating tags for about 2.5 minutes
-	return common.Retry(0.2, 30, 11, func(i uint) (bool, error) {
+	ctx := context.TODO()
+	return retry.Config{
+		Tries: 11,
+		ShouldRetry: func(err error) bool {
+			return awserrors.Matches(err, "UnauthorizedOperation", "")
+		},
+		RetryDelay: (&retry.Backoff{InitialBackoff: 200 * time.Millisecond, MaxBackoff: 30 * time.Second, Multiplier: 2}).Linear,
+	}.Run(ctx, func(ctx context.Context) error {
 		_, err := ac.EC2.CreateTags(&ec2.CreateTagsInput{
 			Resources: []*string{ac.output.ImageId},
 			Tags:      ac.SourceImage.Tags,
@@ -109,11 +118,11 @@ func (ac *AmiCopyImpl) Tag() (err error) {
 		if awsErr, ok := err.(awserr.Error); ok {
 			if awsErr.Code() == "InvalidAMIID.NotFound" ||
 				awsErr.Code() == "InvalidSnapshot.NotFound" {
-				return false, nil
+				return nil
 			}
 		}
 
-		return true, err
+		return err
 	})
 }
 

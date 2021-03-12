@@ -1,14 +1,27 @@
 package main
 
 import (
-	"github.com/hashicorp/packer/packer/plugin"
+	"fmt"
+	"os"
+
+	"github.com/hashicorp/packer-plugin-sdk/plugin"
+	"github.com/hashicorp/packer-plugin-sdk/version"
+)
+
+var (
+	// TODO: LD flags.
+	Version           = "1.7.0"
+	VersionPrerelease = ""
+	PluginVersion     = version.InitializePluginVersion(Version, VersionPrerelease)
 )
 
 func main() {
-	server, err := plugin.Server()
+	pps := plugin.NewSet()
+	pps.RegisterPostProcessor(plugin.DEFAULT_NAME, new(PostProcessor))
+	pps.SetVersion(PluginVersion)
+	err := pps.Run()
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
 	}
-	server.RegisterPostProcessor(&PostProcessor{})
-	server.Serve()
 }
