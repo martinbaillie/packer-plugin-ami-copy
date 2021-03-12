@@ -7,14 +7,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/hashicorp/hcl/v2/hcldec"
 	"io/ioutil"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 
-	"github.com/martinbaillie/packer-post-processor-ami-copy/amicopy"
+	"github.com/hashicorp/hcl/v2/hcldec"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
@@ -25,10 +24,13 @@ import (
 	"github.com/hashicorp/packer/builder/amazon/ebssurrogate"
 	"github.com/hashicorp/packer/builder/amazon/ebsvolume"
 	"github.com/hashicorp/packer/builder/amazon/instance"
-	"github.com/hashicorp/packer/common"
-	"github.com/hashicorp/packer/helper/config"
-	"github.com/hashicorp/packer/packer"
-	"github.com/hashicorp/packer/template/interpolate"
+
+	"github.com/hashicorp/packer-plugin-sdk/common"
+	"github.com/hashicorp/packer-plugin-sdk/packer"
+	"github.com/hashicorp/packer-plugin-sdk/template/config"
+	"github.com/hashicorp/packer-plugin-sdk/template/interpolate"
+
+	"github.com/martinbaillie/packer-plugin-ami-copy/amicopy"
 
 	awscommon "github.com/hashicorp/packer/builder/amazon/common"
 )
@@ -66,14 +68,15 @@ func (p *PostProcessor) ConfigSpec() hcldec.ObjectSpec {
 // Configure interpolates and validates requisite vars for the PostProcessor.
 func (p *PostProcessor) Configure(raws ...interface{}) error {
 	p.config.ctx.Funcs = awscommon.TemplateFuncs
-	err := config.Decode(&p.config, &config.DecodeOpts{
+
+	if err := config.Decode(&p.config, &config.DecodeOpts{
+		PluginType:         BuilderId,
 		Interpolate:        true,
 		InterpolateContext: &p.config.ctx,
 		InterpolateFilter: &interpolate.RenderFilter{
 			Exclude: []string{},
 		},
-	}, raws...)
-	if err != nil {
+	}, raws...); err != nil {
 		return err
 	}
 

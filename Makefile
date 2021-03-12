@@ -105,3 +105,40 @@ help: ## This help target
 	printf $(FORMAT) $(PROJECT)-%-% \
 		"Build for a specific OS and arch (where '%' = OS, arch)"
 .PHONY: help
+
+GPG_KEY 	?=$(shell git config user.signingkey)
+
+SHA256SUMS:
+	echo >&2 "==> Summing"
+	shasum --algorithm 256 $(PROJECT)-* > $@
+
+SHA256SUMS.sig: GPG=$(shell command -v gpg || \
+				(apt-get -qq update &>/dev/null && \
+				apt-get -yqq install gpg &>/dev/null && \
+				command -v gpg))
+SHA256SUMS.sig: SHA256SUMS
+	echo >&2 "==> Signing"
+	$(GPG) --default-key "$(GPG_KEY)" --detach-sig SHA256SUMS
+
+# NOTE: Needs BSD xargs.
+release: GOTHUB=$(shell command -v gothub || \
+					(go get $(GOTHUB_URL)@$(GOTHUB_VER) && \
+					command -v gothub))
+release: GITHUB_REPO=$(PROJECT)
+release: GITHUB_USER=$(word 2,$(subst /, ,$(PACKAGE)))
+release: GITHUB_ASSETS=$(wildcard $(PROJECT)-* SHA256SUMS*)
+release: clean tag build SHA256SUMS.sig ## Build, tag and release to GitHub
+release:
+	echo >&2 "==> Releasing"
+ifndef GITHUB_TOKEN
+		echo >&2 "ERROR: GITHUB_TOKEN missing"
+		exit 127
+endif
+	echo >&2 "===> v$(VERSION)"
+	git push
+	git push --tags
+	$(GOTHUB) release --name "Release v$(VERSION)" --tag "v$(VERSION)"
+	xargs -n1 -P$(words $(GITHUB_ASSETS)) -I{} -- \
+		$(GOTHUB) upload --tag v$(VERSION) --name {} --file {} --replace \
+		<<< "$(GITHUB_ASSETS)"
+.PHONY: release
