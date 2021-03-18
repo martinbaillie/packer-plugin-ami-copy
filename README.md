@@ -1,8 +1,8 @@
 [![License](https://img.shields.io/badge/license-BSD-brightgreen.svg?style=flat-square)](/LICENSE)
 [![Go Report Card](https://goreportcard.com/badge/github.com/martinbaillie/packer-plugin-ami-copy?style=flat-square)](https://goreportcard.com/report/github.com/martinbaillie/packer-plugin-ami-copy)
 [![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](http://godoc.org/github.com/martinbaillie/packer-plugin-ami-copy)
-[![Build](https://img.shields.io/travis/martinbaillie/packer-plugin-ami-copy/master.svg?style=flat-square)](https://travis-ci.org/martinbaillie/packer-plugin-ami-copy)
-[![Release](https://img.shields.io/github/release/martinbaillie/packer-plugin-ami-copy.svg?style=flat-square)](https://github.com/martinbaillie/packer-plugin-ami-copy/releases/latest)
+[![Build](https://github.com/martinbaillie/packer-plugin-ami-copy/actions/workflows/build.yml/badge.svg)](https://github.com/martinbaillie/packer-plugin-ami-copy/actions/workflows/build.yml)
+[![Release](https://github.com/martinbaillie/packer-plugin-ami-copy/actions/workflows/release.yml/badge.svg)](https://github.com/martinbaillie/packer-plugin-ami-copy/actions/workflows/release.yml)
 
 # packer-plugin-ami-copy
 
