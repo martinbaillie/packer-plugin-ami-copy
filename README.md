@@ -6,45 +6,65 @@
 
 # packer-plugin-ami-copy
 
-### Description
+## Description
 
-This plugin fills a gap in a lot of AWS image bakery workflows where the source image built by any of Packer's Amazon builders (EBS, Chroot, Instance etc.) needs to be copied to a number of target accounts.
+This plugin fills a gap in a lot of AWS image bakery workflows where the source
+image built by any of Packer's Amazon builders (EBS, Chroot, Instance etc.)
+needs to be copied to a number of target accounts.
 
-For each `region:ami-id` built, the plugin will copy the image and tags, and optionally encrypt the target AMI and wait for it to become active.
+For each `region:ami-id` built, the plugin will copy the image and tags, and
+optionally encrypt the target AMI and wait for it to become active.
 
-### Installation
+## Installation
 
-This is a packer _plugin_. Please read the plugin [documentation](https://www.packer.io/docs/extend/plugins.html).
+### Using pre-built releases
 
-You can download the latest binary for your architecture from the [releases page](https://github.com/martinbaillie/packer-plugin-ami-copy/releases/latest).
+#### Using the `packer init` command
 
-### Usage
+Starting from version 1.7, Packer supports a new `packer init` command allowing
+automatic installation of Packer plugins. Read the [Packer
+documentation][packer-doc-init] for more information.
 
-```json
-locals { timestamp = regex_replace(timestamp(), "[- TZ:]", "") }
+#### Manual installation
 
-source "amazon-ebs" "demo" {
-  ami_users      = "${var.aws_ami_users}"
-  snapshot_users = "${var.aws_ami_users}"
-  tags = {
-    Name         = "${var.aws_ami_name}-${local.timestamp}"
-    "ami:source" = "{{ .SourceAMI }}"
-  }
-}
+You can find pre-built binary releases of the plugin [here][releases].
+Once you have downloaded the latest archive corresponding to your target OS,
+uncompress it to retrieve the plugin binary file corresponding to your platform.
+To install the plugin, please follow the Packer documentation on
+[installing a plugin][packer-doc-plugins].
 
-build {
-  sources = ["source.amazon-ebs.demo"]
+You can and should verify the authenticity and integrity of the plugin you
+downloaded. All released binaries are hashed and the resulting sums are signed
+by my GPG key.
 
-  post-processor "ami-copy" {
-    ami_users    = "${var.aws_ami_users}"
-    encrypt_boot = true
-    role_name    = "AMICopyRole"
-    // ... other settings.
-  }
-}
+```sh
+# Import my key.
+curl -sS https://github.com/martinbaillie.gpg | gpg --import -
+
+# Verify the authenticity.
+gpg --verify SHA256SUMS.sig SHA256SUMS
+
+# Verify the integrity.
+shasum -a 256 -c SHA256SUMS
 ```
 
-### Configuration
+### From Sources
+
+If you prefer to build the plugin from sources you will need a modern Go
+compiler toolchain (Go 1.16+ ideally). If you are a Nix user,
+[`shell.nix`](shell.nix) can be of use here.
+
+Clone the GitHub repository locally then run a `go build` from the root. Upon
+successful compilation, a `packer-plugin-ami-copy` plugin binary will be
+produced. To install it, follow the official Packer documentation on
+[installing a plugin][packer-doc-plugins].
+
+## Usage
+
+For more information on how to use the plugin, see the [`docs/`](docs) and
+[`examples/`](examples).
+
+## Configuration
 
 Type: `ami-copy`
 
@@ -60,3 +80,9 @@ Optional:
 - `ensure_available` (boolean) - wait until the AMI becomes available in the copy target account(s)
 - `keep_artifact` (boolean) - remove the original generated AMI after copy (default: true)
 - `manifest_output` (string) - the name of the file we output AMI IDs to, in JSON format (default: no manifest file is written)
+
+[packer-doc-plugins]: https://www.packer.io/docs/extending/plugins/#installing-plugins
+[packer-doc-init]: https://www.packer.io/docs/commands/init
+[packer-doc-plugins]: https://www.packer.io/docs/extending/plugins/#installing-plugins
+[packer]: https://www.packer.io/
+[releases]: https://github.com/martinbaillie/packer-plugin-ami-copy/releases
