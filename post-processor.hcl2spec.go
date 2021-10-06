@@ -63,6 +63,7 @@ type FlatConfig struct {
 	EnsureAvailable         *bool                             `mapstructure:"ensure_available" cty:"ensure_available" hcl:"ensure_available"`
 	KeepArtifact            *string                           `mapstructure:"keep_artifact" cty:"keep_artifact" hcl:"keep_artifact"`
 	ManifestOutput          *string                           `mapstructure:"manifest_output" cty:"manifest_output" hcl:"manifest_output"`
+	TagsOnly                *bool                             `mapstructure:"tags_only" cty:"tags_only" hcl:"tags_only"`
 }
 
 // FlatMapstructure returns a new FlatConfig.
@@ -128,6 +129,7 @@ func (*FlatConfig) HCL2Spec() map[string]hcldec.Spec {
 		"ensure_available":              &hcldec.AttrSpec{Name: "ensure_available", Type: cty.Bool, Required: false},
 		"keep_artifact":                 &hcldec.AttrSpec{Name: "keep_artifact", Type: cty.String, Required: false},
 		"manifest_output":               &hcldec.AttrSpec{Name: "manifest_output", Type: cty.String, Required: false},
+		"tags_only":                     &hcldec.AttrSpec{Name: "tags_only", Type: cty.Bool, Required: false},
 	}
 	return s
 }

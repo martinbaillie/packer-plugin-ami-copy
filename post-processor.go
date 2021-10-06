@@ -52,6 +52,7 @@ type Config struct {
 	EnsureAvailable bool   `mapstructure:"ensure_available"`
 	KeepArtifact    string `mapstructure:"keep_artifact"`
 	ManifestOutput  string `mapstructure:"manifest_output"`
+	TagsOnly        bool   `mapstructure:"tags_only"`
 
 	ctx interpolate.Context
 }
@@ -171,6 +172,7 @@ func (p *PostProcessor) PostProcess(
 				EC2:             conn,
 				SourceImage:     source,
 				EnsureAvailable: p.config.EnsureAvailable,
+				TagsOnly:        p.config.TagsOnly,
 			}
 			amiCopy.SetTargetAccountID(user)
 			amiCopy.SetInput(&ec2.CopyImageInput{
@@ -179,7 +181,7 @@ func (p *PostProcessor) PostProcess(
 				SourceImageId: aws.String(ami.id),
 				SourceRegion:  aws.String(ami.region),
 				KmsKeyId:      aws.String(p.config.AMIKmsKeyId),
-				Encrypted:     aws.Bool(*p.config.AMIEncryptBootVolume.ToBoolPointer()),
+				Encrypted:     aws.Bool(p.config.AMIEncryptBootVolume.True()),
 			})
 
 			copies = append(copies, amiCopy)

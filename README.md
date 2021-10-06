@@ -80,6 +80,7 @@ Optional:
 - `ensure_available` (boolean) - wait until the AMI becomes available in the copy target account(s)
 - `keep_artifact` (boolean) - remove the original generated AMI after copy (default: true)
 - `manifest_output` (string) - the name of the file we output AMI IDs to, in JSON format (default: no manifest file is written)
+- `tags_only` (boolean) - if set to `true`, then the AMI won't be copied, but the tags will be duplicated on the shared AMI in the destination account.
 
 [packer-doc-plugins]: https://www.packer.io/docs/extending/plugins/#installing-plugins
 [packer-doc-init]: https://www.packer.io/docs/commands/init

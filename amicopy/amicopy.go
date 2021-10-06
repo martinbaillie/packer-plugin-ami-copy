@@ -32,6 +32,7 @@ type AmiCopyImpl struct {
 	SourceImage     *ec2.Image
 	EnsureAvailable bool
 	KeepArtifact    bool
+	TagsOnly        bool
 }
 
 // AmiManifest holds the data about the resulting copied image
@@ -48,8 +49,13 @@ func (ac *AmiCopyImpl) Copy(ui *packer.Ui) (err error) {
 		return err
 	}
 
-	if ac.output, err = ac.EC2.CopyImage(ac.input); err != nil {
-		return err
+	if ! ac.TagsOnly {
+		if ac.output, err = ac.EC2.CopyImage(ac.input); err != nil {
+			return err
+		}
+	} else {
+		(*ui).Say(fmt.Sprintf("Only copying tags in %s as tags_only=true", ac.targetAccountID))
+		ac.output = (&ec2.CopyImageOutput{}).SetImageId(*ac.input.SourceImageId)
 	}
 
 	if err = ac.Tag(); err != nil {
