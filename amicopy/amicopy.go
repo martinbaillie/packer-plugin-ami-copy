@@ -9,9 +9,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 
+	"github.com/hashicorp/packer-plugin-amazon/builder/common/awserrors"
 	"github.com/hashicorp/packer-plugin-sdk/packer"
 	"github.com/hashicorp/packer-plugin-sdk/retry"
-	"github.com/hashicorp/packer/builder/amazon/common/awserrors"
 )
 
 // AmiCopy defines the interface to copy images
@@ -49,7 +49,7 @@ func (ac *AmiCopyImpl) Copy(ui *packer.Ui) (err error) {
 		return err
 	}
 
-	if ! ac.TagsOnly {
+	if !ac.TagsOnly {
 		if ac.output, err = ac.EC2.CopyImage(ac.input); err != nil {
 			return err
 		}

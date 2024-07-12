@@ -5,7 +5,7 @@ package main
 import (
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/hashicorp/packer-plugin-sdk/template/config"
-	"github.com/hashicorp/packer/builder/amazon/common"
+	"github.com/hashicorp/packer-plugin-amazon/builder/common"
 	"github.com/zclconf/go-cty/cty"
 )
 

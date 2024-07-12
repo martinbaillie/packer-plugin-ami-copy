@@ -12,7 +12,7 @@ var (
 	// TODO: LD flags.
 	Version           = "1.9.0"
 	VersionPrerelease = ""
-	PluginVersion     = version.InitializePluginVersion(Version, VersionPrerelease)
+	PluginVersion     = version.NewPluginVersion(Version, VersionPrerelease, "")
 )
 
 func main() {
