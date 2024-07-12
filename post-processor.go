@@ -19,11 +19,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/service/ec2"
 
-	"github.com/hashicorp/packer/builder/amazon/chroot"
-	"github.com/hashicorp/packer/builder/amazon/ebs"
-	"github.com/hashicorp/packer/builder/amazon/ebssurrogate"
-	"github.com/hashicorp/packer/builder/amazon/ebsvolume"
-	"github.com/hashicorp/packer/builder/amazon/instance"
+	"github.com/hashicorp/packer-plugin-amazon/builder/chroot"
+	"github.com/hashicorp/packer-plugin-amazon/builder/ebs"
+	"github.com/hashicorp/packer-plugin-amazon/builder/ebssurrogate"
+	"github.com/hashicorp/packer-plugin-amazon/builder/ebsvolume"
+	"github.com/hashicorp/packer-plugin-amazon/builder/instance"
 
 	"github.com/hashicorp/packer-plugin-sdk/common"
 	"github.com/hashicorp/packer-plugin-sdk/packer"
@@ -32,7 +32,7 @@ import (
 
 	"github.com/martinbaillie/packer-plugin-ami-copy/amicopy"
 
-	awscommon "github.com/hashicorp/packer/builder/amazon/common"
+	awscommon "github.com/hashicorp/packer-plugin-amazon/builder/common"
 )
 
 // BuilderId is the ID of this post processor.
