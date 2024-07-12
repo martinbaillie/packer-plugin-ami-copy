@@ -10,7 +10,7 @@ import (
 
 var (
 	// TODO: LD flags.
-	Version           = "1.7.0"
+	Version           = "1.9.0"
 	VersionPrerelease = ""
 	PluginVersion     = version.InitializePluginVersion(Version, VersionPrerelease)
 )
