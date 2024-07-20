@@ -1,68 +1,47 @@
-version: 2
-
-env:
-  - CGO_ENABLED=0
+report_sizes: false
 
 builds:
-  # A separated build to run the packer-plugins-check only once for a linux_amd64 binary
-  -
-    id: plugin-check
-    mod_timestamp: '{{ .CommitTimestamp }}'
-    hooks:
-      post:
-        # This will check plugin compatibility against latest version of Packer
-        - cmd: |
-            go install github.com/hashicorp/packer/cmd/packer-plugins-check@v1.7.10 &&
-            packer-plugins-check -load={{ .Name }}
-          dir: "{{ dir .Path}}"
-    flags:
-      - -trimpath #removes all file system paths from the compiled executable
-    ldflags:
-      - '-s -w -X main.Version={{.Version}} -X main.VersionPrerelease= '
-    goos:
-      - linux
-    goarch:
-      - amd64
-    binary: '{{ .ProjectName }}_v{{ .Version }}_{{ .Env.API_VERSION }}_{{ .Os }}_{{ .Arch }}'
-  -
-    mod_timestamp: '{{ .CommitTimestamp }}'
-    flags:
-      - -trimpath #removes all file system paths from the compiled executable
-    ldflags:
-      - '-s -w -X main.version={{.Version}} -X main.VersionPrerelease= '
-    goos:
-      - freebsd
+  - goos:
+      - darwin
       - windows
       - linux
-      - darwin
+      - freebsd
+      - netbsd
+      - openbsd
+      - solaris
     goarch:
+      - "386"
       - amd64
-      - '386'
       - arm
       - arm64
-    ignore:
-      - goos: darwin
-        goarch: '386'
-      - goos: linux
-        goarch: amd64
-    binary: '{{ .ProjectName }}_v{{ .Version }}_{{ .Env.API_VERSION }}_{{ .Os }}_{{ .Arch }}'
-archives:
-- format: zip
-  name_template: '{{ .ProjectName }}_v{{ .Version }}_{{ .Env.API_VERSION }}_{{ .Os }}_{{ .Arch }}'
-checksum:
-  name_template: '{{ .ProjectName }}_v{{ .Version }}_SHA256SUMS'
-  algorithm: sha256
-release:
-changelog:
-  sort: asc
-  use: github
-  filters:
-    exclude:
-      - "^test:"
-      - "^test\\("
-      - "merge conflict"
-      - Merge pull request
-      - Merge remote-tracking branch
-      - Merge branch
-      - go mod tidy
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    flags:
+      - -trimpath
+    ldflags:
+      - -s
+      - -w
+      - -extldflags
+      - -static
+    no_unique_dist_dir: true
+    binary: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
 
+archives:
+  - format: binary
+    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+
+checksum:
+  name_template: 'SHA256SUMS'
+  algorithm: sha256
+
+signs:
+  - id: sha256
+    artifacts: checksum
+
+sboms:
+  - artifacts: binary
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-rc"
+
+release:
+  draft: true

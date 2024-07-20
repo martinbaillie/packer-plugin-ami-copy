@@ -1,3 +1,4 @@
 packer-plugin-ami-copy*
 **/mock.go
 SHA256SUMS*
+.direnv
