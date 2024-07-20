@@ -22,6 +22,7 @@
             gnumake
             go
             goreleaser
+            syft
             packer
           ];
         };
