@@ -1,3 +1,5 @@
+version: 2
+
 env:
   - CGO_ENABLED=0
 
@@ -10,7 +12,7 @@ builds:
       post:
         # This will check plugin compatibility against latest version of Packer
         - cmd: |
-            go install github.com/hashicorp/packer/cmd/packer-plugins-check@latest &&
+            go install github.com/hashicorp/packer/cmd/packer-plugins-check@v1.7.10 &&
             packer-plugins-check -load={{ .Name }}
           dir: "{{ dir .Path}}"
     flags:
@@ -52,4 +54,15 @@ checksum:
   algorithm: sha256
 release:
 changelog:
-  skip: true
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^test:"
+      - "^test\\("
+      - "merge conflict"
+      - Merge pull request
+      - Merge remote-tracking branch
+      - Merge branch
+      - go mod tidy
+
