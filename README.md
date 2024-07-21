@@ -6,6 +6,12 @@
 
 # packer-plugin-ami-copy
 
+> [!NOTE]
+>
+> While I'm aware this is still heavily used in some organisations, I haven't personally used this
+> plugin in over 5 years. If you want something to change about it, please don't raise issues. Just
+> raise PRs.
+
 ## Description
 
 This plugin fills a gap in a lot of AWS image bakery workflows where the source
@@ -61,8 +67,7 @@ produced. To install it, follow the official Packer documentation on
 
 ## Usage
 
-For more information on how to use the plugin, see the [`docs/`](docs) and
-[`examples/`](examples).
+For more information on how to use the plugin, see [`example/`](example).
 
 ## Configuration
 
