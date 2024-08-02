@@ -3,32 +3,35 @@ report_sizes: false
 
 builds:
   - goos:
-      - darwin
+      - freebsd
       - windows
       - linux
-      - freebsd
-      - netbsd
-      - openbsd
-      - solaris
+      - darwin
     goarch:
-      - "386"
       - amd64
+      - '386'
       - arm
       - arm64
+    ignore:
+      - goos: darwin
+        goarch: '386'
+      - goos: linux
+        goarch: amd64
     mod_timestamp: "{{ .CommitTimestamp }}"
     flags:
       - -trimpath
     ldflags:
-      - -s
-      - -w
-      - -extldflags
-      - -static
+      - '-s -w -X main.version={{.Version}} -X main.VersionPrerelease= '
     no_unique_dist_dir: true
-    binary: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+    binary: '{{ .ProjectName }}_v{{ .Version }}_{{ .Env.API_VERSION }}_{{ .Os }}_{{ .Arch }}'
+
   # A separated build to run the packer-plugins-check only once for a linux_amd64 binary
-  -
-    id: plugin-check
+  - id: plugin-check
     mod_timestamp: '{{ .CommitTimestamp }}'
+    goos:
+      - linux
+    goarch:
+      - amd64
     hooks:
       post:
         # This will check plugin compatibility against latest version of Packer
@@ -38,16 +41,16 @@ builds:
           dir: "{{ dir .Path}}"
 
 archives:
-  - format: binary
-    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+  - format: zip
+    name_template: '{{ .ProjectName }}_v{{ .Version }}_{{ .Env.API_VERSION }}_{{ .Os }}_{{ .Arch }}'
 
 checksum:
-  name_template: 'SHA256SUMS'
+  name_template: '{{ .ProjectName }}_v{{ .Version }}_SHA256SUMS'
   algorithm: sha256
 
-signs:
-  - id: sha256
-    artifacts: checksum
+# signs:
+#   - id: sha256
+#     artifacts: checksum
 
 sboms:
   - artifacts: binary
@@ -70,5 +73,3 @@ changelog:
       - Merge remote-tracking branch
       - Merge branch
       - go mod tidy
-
-
