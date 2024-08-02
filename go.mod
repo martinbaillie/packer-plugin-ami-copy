@@ -3,7 +3,7 @@ module github.com/martinbaillie/packer-plugin-ami-copy
 go 1.22.5
 
 require (
-	github.com/aws/aws-sdk-go v1.55.3
+	github.com/aws/aws-sdk-go v1.55.5
 	github.com/hashicorp/hcl/v2 v2.21.0
 	github.com/hashicorp/packer-plugin-amazon v1.3.2
 	github.com/hashicorp/packer-plugin-sdk v0.5.4
