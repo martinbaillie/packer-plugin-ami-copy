@@ -17,7 +17,10 @@ jobs:
           go-version-file: 'go.mod'
       - name: Describe plugin
         id: plugin_describe
-        run: echo "name=api_version::$(go run . describe | jq -r '.api_version')" >> $GITHUB_OUTPUT
+        run: |
+          set -e
+          API_VERSION=$(go run . describe | jq -r '.api_version')
+          echo "API_VERSION=$API_VERSION" >> "$GITHUB_ENV"
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
@@ -25,4 +28,3 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          API_VERSION: ${{ steps.plugin_describe.outputs.api_version }}
