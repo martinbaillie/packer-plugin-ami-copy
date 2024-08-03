@@ -52,8 +52,8 @@ checksum:
 #   - id: sha256
 #     artifacts: checksum
 
-sboms:
-  - artifacts: binary
+# sboms:
+#   - artifacts: binary
 
 snapshot:
   name_template: "{{ incpatch .Version }}-rc"
