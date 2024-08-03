@@ -59,7 +59,7 @@ snapshot:
   name_template: "{{ incpatch .Version }}-rc"
 
 release:
-  draft: true
+  draft: false
 
 changelog:
   sort: asc
