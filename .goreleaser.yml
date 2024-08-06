@@ -39,6 +39,7 @@ builds:
             go install github.com/hashicorp/packer/cmd/packer-plugins-check@v1.7.10 &&
             packer-plugins-check -load={{ .Name }}
           dir: "{{ dir .Path}}"
+    binary: '{{ .ProjectName }}_v{{ .Version }}_{{ .Env.API_VERSION }}_{{ .Os }}_{{ .Arch }}'
 
 archives:
   - format: zip
