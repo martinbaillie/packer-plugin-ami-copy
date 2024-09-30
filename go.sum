@@ -209,8 +209,8 @@ github.com/hashicorp/logutils v1.0.0/go.mod h1:QIAnNjmIWmVIIkWDTG1z5v++HQmx9WQRO
 github.com/hashicorp/mdns v1.0.4/go.mod h1:mtBihi+LeNXGtG8L9dX59gAEa12BDtBQSp4v/YAJqrc=
 github.com/hashicorp/memberlist v0.5.0 h1:EtYPN8DpAURiapus508I4n9CzHs2W+8NZGbmmR/prTM=
 github.com/hashicorp/memberlist v0.5.0/go.mod h1:yvyXLpo0QaGE59Y7hDTsTzDD25JYBZ4mHgHUZ8lrOI0=
-github.com/hashicorp/packer-plugin-amazon v1.3.2 h1:1rQoaKTdhE40+w1x2+A2SZZHoDTVTAXqNxq1wYrx5yY=
-github.com/hashicorp/packer-plugin-amazon v1.3.2/go.mod h1:zsXirXn2L9rwDlTMFZWPW6r2N1J6xy637KmBjSFnJnM=
+github.com/hashicorp/packer-plugin-amazon v1.3.3 h1:Hj5A17WTlJkEVUPm2wM7h/ykTBtcKbK5xpwx+TJmygs=
+github.com/hashicorp/packer-plugin-amazon v1.3.3/go.mod h1:vfNBwkejvfuoCFFNRTT7MGH3blPipjf2ulsH9zl2qic=
 github.com/hashicorp/packer-plugin-sdk v0.5.4 h1:5Bl5DMEa//G4gBNcl842JopM9L4KSSsxpvB4W1lEwIA=
 github.com/hashicorp/packer-plugin-sdk v0.5.4/go.mod h1:ALm0ZIK3c/F4iOqPNi7xVuHTgrR5dxzOK+DhFN5DHj4=
 github.com/hashicorp/serf v0.10.1 h1:Z1H2J60yRKvfDYAOZLd2MU0ND4AH/WDz7xYHDWQsIPY=
