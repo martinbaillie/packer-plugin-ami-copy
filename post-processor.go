@@ -15,9 +15,11 @@ import (
 
 	"github.com/hashicorp/hcl/v2/hcldec"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 
 	"github.com/hashicorp/packer-plugin-amazon/builder/chroot"
 	"github.com/hashicorp/packer-plugin-amazon/builder/ebs"
@@ -121,8 +123,8 @@ func (p *PostProcessor) PostProcess(
 				artifact.BuilderId())
 	}
 
-	// Current AWS session
-	currSession, err := p.config.AccessConfig.Session()
+	// Current AWS V2 config
+	awscfg, err := p.config.AccessConfig.GetAWSConfig(ctx)
 	if err != nil {
 		return artifact, keepArtifactBool, false, err
 	}
@@ -134,27 +136,33 @@ func (p *PostProcessor) PostProcess(
 		copies []amicopy.AmiCopy
 	)
 	for _, ami := range amis {
-		var source *ec2.Image
+		var source *ec2types.Image
 		if source, err = amicopy.LocateSingleAMI(
+			ctx,
 			ami.id,
-			ec2.New(currSession, aws.NewConfig().WithRegion(ami.region)),
+			ec2.NewFromConfig(*awscfg, func(o *ec2.Options) {
+				o.Region = ami.region
+			}),
 		); err != nil || source == nil {
 			return artifact, keepArtifactBool, false, err
 		}
 
 		for _, user := range users {
-			var conn *ec2.EC2
+			var conn *ec2.Client
 			{
 				if p.config.RoleName != "" {
 					var (
 						role = fmt.Sprintf("arn:aws:iam::%s:role/%s", user, p.config.RoleName)
-						sess = currSession.Copy(&aws.Config{Region: aws.String(ami.region)})
+						stsc = sts.NewFromConfig(awscfg.Copy())
 					)
-					conn = ec2.New(sess, &aws.Config{
-						Credentials: stscreds.NewCredentials(sess, role),
+					conn = ec2.NewFromConfig(awscfg.Copy(), func(o *ec2.Options) {
+						o.Credentials = stscreds.NewAssumeRoleProvider(stsc, role)
+						o.Region = ami.region
 					})
 				} else {
-					conn = ec2.New(currSession.Copy(&aws.Config{Region: aws.String(ami.region)}))
+					conn = ec2.NewFromConfig(*awscfg, func(o *ec2.Options) {
+						o.Region = ami.region
+					})
 				}
 			}
 
@@ -188,7 +196,7 @@ func (p *PostProcessor) PostProcess(
 		}
 	}
 
-	copyErrs := copyAMIs(copies, ui, p.config.ManifestOutput, p.config.CopyConcurrency)
+	copyErrs := copyAMIs(ctx, copies, ui, p.config.ManifestOutput, p.config.CopyConcurrency)
 	if copyErrs > 0 {
 		return artifact, true, false, fmt.Errorf(
 			"%d/%d AMI copies failed, manual reconciliation may be required", copyErrs, len(copies))
@@ -197,7 +205,7 @@ func (p *PostProcessor) PostProcess(
 	return artifact, keepArtifactBool, false, nil
 }
 
-func copyAMIs(copies []amicopy.AmiCopy, ui packer.Ui, manifestOutput string, concurrencyCount int) int32 {
+func copyAMIs(ctx context.Context, copies []amicopy.AmiCopy, ui packer.Ui, manifestOutput string, concurrencyCount int) int32 {
 	// Copy execution loop
 	var (
 		copyCount    = len(copies)
@@ -227,7 +235,7 @@ func copyAMIs(copies []amicopy.AmiCopy, ui packer.Ui, manifestOutput string, con
 						*input.Encrypted,
 					),
 				)
-				if err := c.Copy(&ui); err != nil {
+				if err := c.Copy(ctx, &ui); err != nil {
 					ui.Say(err.Error())
 					atomic.AddInt32(&copyErrs, 1)
 					continue
